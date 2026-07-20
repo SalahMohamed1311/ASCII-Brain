@@ -288,25 +288,25 @@
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
-  // ---------- storage ----------
+  // ---------- storage (localStorage: same browser/device only) ----------
+  const NS = 'ascii_brain:';
   async function loadMissions(cat){
     try{
-      const r = await window.storage.get('missions:' + cat);
-      return r ? JSON.parse(r.value) : [];
+      const raw = localStorage.getItem(NS + 'missions:' + cat);
+      return raw ? JSON.parse(raw) : [];
     }catch(e){ return []; }
   }
   async function saveMissions(cat, missions){
-    try{ await window.storage.set('missions:' + cat, JSON.stringify(missions)); }
+    try{ localStorage.setItem(NS + 'missions:' + cat, JSON.stringify(missions)); }
     catch(e){ console.error('save missions failed', e); }
   }
   async function loadNotes(cat){
     try{
-      const r = await window.storage.get('notes:' + cat);
-      return r ? r.value : '';
+      return localStorage.getItem(NS + 'notes:' + cat) || '';
     }catch(e){ return ''; }
   }
   async function saveNotes(cat, text){
-    try{ await window.storage.set('notes:' + cat, text); }
+    try{ localStorage.setItem(NS + 'notes:' + cat, text); }
     catch(e){ console.error('save notes failed', e); }
   }
 
