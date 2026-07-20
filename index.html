@@ -1,0 +1,588 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#eef4fc;
+    --panel:#ffffff;
+    --panel-raised:#f2f7fd;
+    --amber:#1d4ed8;
+    --amber-dim:#8098c2;
+    --amber-bright:#ff7a29;
+    --signal:#0ea5e9;
+    --danger:#e35f00;
+    --border:#d7e3f5;
+    --font-display:'Space Mono', monospace;
+    --font-body:'JetBrains Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at 50% -10%, #dbe9fb 0%, var(--void) 55%);
+    color:var(--amber);
+    font-family:var(--font-body);
+    min-height:100vh;
+    padding:28px 16px 60px;
+    position:relative;
+    overflow-x:hidden;
+  }
+  #scanlines{
+    position:fixed; inset:0; pointer-events:none; z-index:50;
+    background:repeating-linear-gradient(
+      to bottom,
+      rgba(29,78,216,0.025) 0px,
+      rgba(29,78,216,0.025) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    mix-blend-mode:multiply;
+  }
+  #glow{
+    position:fixed; inset:0; pointer-events:none; z-index:49;
+    box-shadow: inset 0 0 160px rgba(29,78,216,0.08);
+  }
+  @keyframes flicker{
+    0%,100%{opacity:1;}
+    92%{opacity:1;}
+    93%{opacity:0.94;}
+    94%{opacity:1;}
+  }
+  @media (prefers-reduced-motion: no-preference){
+    #scanlines{ animation: flicker 7s infinite; }
+  }
+  #app{
+    max-width:880px;
+    margin:0 auto;
+    position:relative;
+    z-index:1;
+  }
+  .win{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:6px;
+    box-shadow:0 0 0 1px rgba(29,78,216,0.08), 0 20px 50px rgba(29,78,216,0.14);
+    overflow:hidden;
+  }
+  .win-bar{
+    display:flex; align-items:center; gap:8px;
+    padding:9px 12px;
+    background:var(--panel-raised);
+    border-bottom:1px solid var(--border);
+    font-size:12px;
+    letter-spacing:0.06em;
+    color:var(--amber-dim);
+  }
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--amber-dim);opacity:0.55;}
+  .win-title{margin-left:6px; color:var(--amber-dim);}
+  .win-body{padding:26px 26px 30px;}
+  @media (max-width:600px){ .win-body{padding:18px 16px 24px;} }
+
+  .cursor{
+    display:inline-block; width:9px; height:1.1em; background:var(--amber);
+    vertical-align:-0.15em; margin-left:2px;
+  }
+  @media (prefers-reduced-motion: no-preference){
+    .cursor{ animation: blink 1.05s steps(1) infinite; }
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  .banner{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:clamp(28px, 6vw, 44px);
+    letter-spacing:0.02em;
+    color:var(--amber-bright);
+    text-shadow:0 0 18px rgba(255,122,41,0.3);
+    margin:0;
+    line-height:1.05;
+  }
+  .boot-line{
+    color:var(--amber-dim);
+    font-size:13px;
+    margin-top:8px;
+  }
+  .net{
+    font-family:var(--font-body);
+    color:var(--amber-dim);
+    font-size:12px;
+    line-height:1.35;
+    white-space:pre;
+    margin:18px 0 26px;
+    opacity:0.8;
+  }
+
+  .menu-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    margin-top:6px;
+  }
+  @media (max-width:560px){ .menu-grid{ grid-template-columns:1fr; } }
+
+  .menu-item{
+    display:flex; align-items:center; gap:10px;
+    background:var(--panel-raised);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:16px 14px;
+    cursor:pointer;
+    color:var(--amber);
+    font-family:var(--font-body);
+    font-size:14px;
+    text-align:left;
+    transition:border-color .15s ease, background .15s ease, transform .1s ease;
+  }
+  .menu-item:hover{ border-color:var(--amber-dim); background:#e4edfa; }
+  .menu-item:active{ transform:scale(0.995); }
+  .menu-item:focus-visible{ outline:2px solid var(--amber); outline-offset:2px; }
+  .menu-idx{ color:var(--amber-dim); font-size:12px; }
+  .menu-label{ font-weight:700; letter-spacing:0.03em; color:var(--amber-bright); }
+  .menu-fill{ flex:1; border-bottom:1px dotted var(--border); margin:0 8px; height:1px; align-self:center; }
+  .menu-count{ font-size:12px; color:var(--amber-dim); white-space:nowrap; }
+
+  .footnote{ margin-top:22px; font-size:11.5px; color:var(--amber-dim); line-height:1.6; }
+
+  /* ---- category page ---- */
+  .crumb{
+    font-size:12px; color:var(--amber-dim); margin-bottom:4px;
+  }
+  .cat-header{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    margin-bottom:18px; flex-wrap:wrap;
+  }
+  .cat-title{
+    font-family:var(--font-display); font-weight:700;
+    font-size:clamp(20px,4vw,28px); color:var(--amber-bright); margin:0;
+    letter-spacing:0.02em;
+  }
+  .btn{
+    font-family:var(--font-body);
+    background:var(--panel-raised);
+    color:var(--amber);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:8px 12px;
+    font-size:12.5px;
+    cursor:pointer;
+    letter-spacing:0.03em;
+    transition:border-color .15s ease, background .15s ease, color .15s ease;
+  }
+  .btn:hover{ border-color:var(--amber-dim); background:#e4edfa; }
+  .btn:focus-visible{ outline:2px solid var(--amber); outline-offset:2px; }
+  .btn-ghost{ background:transparent; }
+  .btn-danger:hover{ border-color:var(--danger); color:var(--danger); }
+
+  .panels{
+    display:grid;
+    grid-template-columns:1.4fr 1fr;
+    gap:16px;
+    align-items:start;
+  }
+  @media (max-width:760px){ .panels{ grid-template-columns:1fr; } }
+
+  .panel-label{
+    font-size:11px; letter-spacing:0.12em; color:var(--amber-dim);
+    margin-bottom:10px; text-transform:uppercase;
+  }
+
+  .progress-row{ display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .progress-bar{ font-family:var(--font-body); color:var(--amber); letter-spacing:-1px; font-size:15px; }
+  .progress-bar .empty{ color:var(--border); }
+  .progress-frac{ font-size:12px; color:var(--amber-dim); white-space:nowrap; }
+
+  .toolbar{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .input{
+    font-family:var(--font-body);
+    background:var(--void);
+    border:1px solid var(--border);
+    color:var(--amber);
+    border-radius:4px;
+    padding:8px 10px;
+    font-size:13px;
+    outline:none;
+  }
+  .input::placeholder{ color:var(--amber-dim); }
+  .input:focus{ border-color:var(--amber-dim); }
+  .search-input{ flex:1; min-width:120px; }
+
+  .tabs{ display:flex; gap:4px; }
+  .tab{
+    font-family:var(--font-body); font-size:12px;
+    background:transparent; border:1px solid var(--border); color:var(--amber-dim);
+    padding:7px 10px; border-radius:4px; cursor:pointer;
+  }
+  .tab.active{ color:var(--void); background:var(--amber); border-color:var(--amber); font-weight:700; }
+  .sort-select{ font-family:var(--font-body); background:var(--void); color:var(--amber-dim); border:1px solid var(--border); border-radius:4px; font-size:12px; padding:7px 8px; }
+
+  .add-row{ display:flex; gap:8px; margin-bottom:16px; }
+  .add-input{ flex:1; }
+  .prio-select{ width:64px; }
+
+  .m-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; }
+  .m-item{
+    display:flex; align-items:center; gap:10px;
+    background:var(--panel-raised);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:9px 10px;
+  }
+  .m-item.done{ opacity:0.55; }
+  .m-check{
+    font-family:var(--font-body); background:transparent; border:none; color:var(--amber);
+    cursor:pointer; font-size:14px; padding:0; width:22px; text-align:center; flex-shrink:0;
+  }
+  .m-item.done .m-check{ color:var(--signal); }
+  .m-prio{ font-size:12px; width:20px; text-align:center; flex-shrink:0; }
+  .m-prio.high{ color:var(--danger); }
+  .m-prio.med{ color:var(--amber); }
+  .m-prio.low{ color:var(--amber-dim); }
+  .m-text{ flex:1; font-size:13.5px; word-break:break-word; cursor:text; }
+  .m-item.done .m-text{ text-decoration:line-through; color:var(--amber-dim); }
+  .m-edit-input{ flex:1; font-family:var(--font-body); background:var(--void); border:1px solid var(--amber-dim); color:var(--amber); border-radius:3px; padding:4px 6px; font-size:13.5px; }
+  .m-del{ font-family:var(--font-body); background:transparent; border:none; color:var(--amber-dim); cursor:pointer; font-size:14px; flex-shrink:0; padding:2px 4px; }
+  .m-del:hover{ color:var(--danger); }
+  .m-del.confirming{ color:var(--danger); font-weight:700; }
+
+  .empty-state{ color:var(--amber-dim); font-size:13px; padding:22px 4px; text-align:center; border:1px dashed var(--border); border-radius:4px; }
+
+  .notes-area{
+    width:100%; min-height:260px; resize:vertical;
+    background:var(--void); border:1px solid var(--border); border-radius:4px;
+    color:var(--amber); font-family:var(--font-body); font-size:13px; line-height:1.6;
+    padding:12px; outline:none;
+  }
+  .notes-area:focus{ border-color:var(--amber-dim); }
+  .notes-status{ font-size:11px; color:var(--amber-dim); margin-top:6px; height:14px; }
+
+  .reset-row{ margin-top:22px; text-align:right; }
+  .reset-row .btn{ font-size:11px; color:var(--amber-dim); }
+</style>
+
+<div id="scanlines"></div>
+<div id="glow"></div>
+<div id="app"></div>
+
+<script>
+(function(){
+  const CATEGORIES = [
+    { key:'cou-coll', idx:'01' },
+    { key:'mo-wo',    idx:'02' },
+    { key:'sp-tr',    idx:'03' },
+    { key:'me-go',    idx:'04' }
+  ];
+
+  const state = {
+    view:'main',
+    cat:null,
+    missions:[],
+    filter:'all',
+    search:'',
+    sort:'newest',
+    counts:{}
+  };
+
+  const app = document.getElementById('app');
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- storage ----------
+  async function loadMissions(cat){
+    try{
+      const r = await window.storage.get('missions:' + cat);
+      return r ? JSON.parse(r.value) : [];
+    }catch(e){ return []; }
+  }
+  async function saveMissions(cat, missions){
+    try{ await window.storage.set('missions:' + cat, JSON.stringify(missions)); }
+    catch(e){ console.error('save missions failed', e); }
+  }
+  async function loadNotes(cat){
+    try{
+      const r = await window.storage.get('notes:' + cat);
+      return r ? r.value : '';
+    }catch(e){ return ''; }
+  }
+  async function saveNotes(cat, text){
+    try{ await window.storage.set('notes:' + cat, text); }
+    catch(e){ console.error('save notes failed', e); }
+  }
+
+  // ---------- main menu ----------
+  async function showMain(){
+    state.view = 'main';
+    app.innerHTML = `
+      <div class="win">
+        <div class="win-bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="win-title">ascii_brain.sys</span>
+        </div>
+        <div class="win-body">
+          <h1 class="banner">ASCII_BRAIN<span class="cursor"></span></h1>
+          <div class="boot-line">&gt;&gt;&gt; personal operating system &mdash; life management module</div>
+          <pre class="net">   o     o     o
+    \\   /|\\   /
+     \\ / | \\ /
+      X  |  X
+     / \\ | / \\
+    o   \\|/   o
+         o</pre>
+          <div class="menu-grid" id="menuGrid">
+            ${CATEGORIES.map(c => `
+              <button class="menu-item" data-cat="${c.key}">
+                <span class="menu-idx">[${c.idx}]</span>
+                <span class="menu-label">${c.key.toUpperCase()}</span>
+                <span class="menu-fill"></span>
+                <span class="menu-count" id="count-${c.key}">&middot;&middot;&middot;</span>
+              </button>
+            `).join('')}
+          </div>
+          <div class="footnote">select a module to view its mission list and notes. all data is saved automatically.</div>
+        </div>
+      </div>
+    `;
+    app.querySelectorAll('.menu-item').forEach(btn=>{
+      btn.addEventListener('click', () => showCategory(btn.dataset.cat));
+    });
+    // populate counts async without blocking render
+    CATEGORIES.forEach(async c => {
+      const missions = await loadMissions(c.key);
+      const active = missions.filter(m => !m.done).length;
+      const el = document.getElementById('count-' + c.key);
+      if(el) el.textContent = active + ' active';
+    });
+  }
+
+  // ---------- category page ----------
+  async function showCategory(catKey){
+    state.view = 'category';
+    state.cat = catKey;
+    state.filter = 'all';
+    state.search = '';
+    state.sort = 'newest';
+    state.missions = await loadMissions(catKey);
+    const notes = await loadNotes(catKey);
+
+    app.innerHTML = `
+      <div class="crumb">ASCII_BRAIN &gt; ${catKey.toUpperCase()}</div>
+      <div class="cat-header">
+        <h2 class="cat-title">${catKey.toUpperCase()}</h2>
+        <button class="btn" id="backBtn">&larr; back</button>
+      </div>
+      <div class="panels">
+        <div class="win">
+          <div class="win-bar"><span class="dot"></span><span class="win-title">missions</span></div>
+          <div class="win-body">
+            <div class="progress-row">
+              <span class="progress-bar" id="progressBar"></span>
+              <span class="progress-frac" id="progressFrac"></span>
+            </div>
+            <div class="toolbar">
+              <input class="input search-input" id="searchInput" type="text" placeholder="search missions...">
+              <div class="tabs" id="filterTabs">
+                <button class="tab active" data-filter="all">all</button>
+                <button class="tab" data-filter="active">active</button>
+                <button class="tab" data-filter="done">done</button>
+              </div>
+              <select class="sort-select" id="sortSelect">
+                <option value="newest">newest</option>
+                <option value="oldest">oldest</option>
+                <option value="priority">priority</option>
+              </select>
+            </div>
+            <div class="add-row">
+              <input class="input add-input" id="addInput" type="text" placeholder="&gt; type a new mission and press enter">
+              <select class="input prio-select" id="addPrio" title="priority">
+                <option value="med">~</option>
+                <option value="high">!</option>
+                <option value="low">.</option>
+              </select>
+              <button class="btn" id="addBtn">+ add</button>
+            </div>
+            <ul class="m-list" id="mList"></ul>
+            <div class="reset-row"><button class="btn btn-ghost btn-danger" id="resetBtn">reset this module</button></div>
+          </div>
+        </div>
+        <div class="win">
+          <div class="win-bar"><span class="dot"></span><span class="win-title">notes.txt</span></div>
+          <div class="win-body">
+            <div class="panel-label">scratchpad</div>
+            <textarea class="notes-area" id="notesArea" placeholder="write anything here — plans, thoughts, links...">${escapeHtml(notes)}</textarea>
+            <div class="notes-status" id="notesStatus"></div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('backBtn').addEventListener('click', showMain);
+
+    document.getElementById('searchInput').addEventListener('input', e=>{
+      state.search = e.target.value.toLowerCase();
+      renderMissionList();
+    });
+    document.getElementById('filterTabs').addEventListener('click', e=>{
+      const btn = e.target.closest('.tab');
+      if(!btn) return;
+      state.filter = btn.dataset.filter;
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      btn.classList.add('active');
+      renderMissionList();
+    });
+    document.getElementById('sortSelect').addEventListener('change', e=>{
+      state.sort = e.target.value;
+      renderMissionList();
+    });
+
+    async function addMission(){
+      const input = document.getElementById('addInput');
+      const text = input.value.trim();
+      if(!text) return;
+      const prio = document.getElementById('addPrio').value;
+      state.missions.push({
+        id: 'm' + Date.now() + Math.random().toString(36).slice(2,7),
+        text, done:false, priority:prio, created: Date.now()
+      });
+      await saveMissions(state.cat, state.missions);
+      input.value = '';
+      renderMissionList();
+    }
+    document.getElementById('addBtn').addEventListener('click', addMission);
+    document.getElementById('addInput').addEventListener('keydown', e=>{
+      if(e.key === 'Enter') addMission();
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', function handleReset(){
+      const btn = document.getElementById('resetBtn');
+      if(btn.dataset.confirming === 'true'){
+        state.missions = [];
+        saveMissions(state.cat, state.missions);
+        saveNotes(state.cat, '');
+        document.getElementById('notesArea').value = '';
+        renderMissionList();
+        btn.textContent = 'reset this module';
+        btn.dataset.confirming = 'false';
+      } else {
+        btn.dataset.confirming = 'true';
+        btn.textContent = 'click again to confirm';
+        setTimeout(()=>{
+          if(btn.dataset.confirming === 'true'){
+            btn.dataset.confirming = 'false';
+            btn.textContent = 'reset this module';
+          }
+        }, 3000);
+      }
+    });
+
+    // notes autosave
+    let notesTimer = null;
+    const notesArea = document.getElementById('notesArea');
+    const notesStatus = document.getElementById('notesStatus');
+    notesArea.addEventListener('input', ()=>{
+      notesStatus.textContent = 'saving...';
+      clearTimeout(notesTimer);
+      notesTimer = setTimeout(async ()=>{
+        await saveNotes(state.cat, notesArea.value);
+        notesStatus.textContent = 'saved';
+        setTimeout(()=>{ if(notesStatus.textContent === 'saved') notesStatus.textContent = ''; }, 1500);
+      }, 700);
+    });
+
+    renderMissionList();
+  }
+
+  function prioRank(p){ return p === 'high' ? 0 : p === 'med' ? 1 : 2; }
+  function prioSymbol(p){ return p === 'high' ? '!' : p === 'med' ? '~' : '.'; }
+
+  function renderMissionList(){
+    const listEl = document.getElementById('mList');
+    if(!listEl) return;
+
+    let items = state.missions.slice();
+    if(state.filter === 'active') items = items.filter(m=>!m.done);
+    if(state.filter === 'done') items = items.filter(m=>m.done);
+    if(state.search) items = items.filter(m=>m.text.toLowerCase().includes(state.search));
+
+    if(state.sort === 'newest') items.sort((a,b)=>b.created - a.created);
+    if(state.sort === 'oldest') items.sort((a,b)=>a.created - b.created);
+    if(state.sort === 'priority') items.sort((a,b)=>prioRank(a.priority) - prioRank(b.priority));
+
+    const total = state.missions.length;
+    const doneCount = state.missions.filter(m=>m.done).length;
+    const blocks = 16;
+    const filled = total ? Math.round((doneCount/total) * blocks) : 0;
+    document.getElementById('progressBar').innerHTML =
+      '█'.repeat(filled) + '<span class="empty">' + '░'.repeat(blocks - filled) + '</span>';
+    document.getElementById('progressFrac').textContent = doneCount + '/' + total;
+
+    if(items.length === 0){
+      listEl.innerHTML = `<div class="empty-state">${total === 0 ? 'no missions logged. type above and press enter.' : 'nothing matches this view.'}</div>`;
+      return;
+    }
+
+    listEl.innerHTML = items.map(m => `
+      <li class="m-item ${m.done ? 'done' : ''}" data-id="${m.id}">
+        <button class="m-check" data-action="toggle">${m.done ? '[x]' : '[ ]'}</button>
+        <span class="m-prio ${m.priority}">${prioSymbol(m.priority)}</span>
+        <span class="m-text" data-action="edit">${escapeHtml(m.text)}</span>
+        <button class="m-del" data-action="delete">×</button>
+      </li>
+    `).join('');
+
+    listEl.querySelectorAll('.m-item').forEach(row=>{
+      const id = row.dataset.id;
+      const mission = state.missions.find(m=>m.id === id);
+
+      row.querySelector('[data-action="toggle"]').addEventListener('click', async ()=>{
+        mission.done = !mission.done;
+        await saveMissions(state.cat, state.missions);
+        renderMissionList();
+      });
+
+      row.querySelector('[data-action="edit"]').addEventListener('click', function(){
+        const span = this;
+        const input = document.createElement('input');
+        input.className = 'm-edit-input';
+        input.value = mission.text;
+        span.replaceWith(input);
+        input.focus();
+        input.select();
+        const commit = async ()=>{
+          const val = input.value.trim();
+          if(val) mission.text = val;
+          await saveMissions(state.cat, state.missions);
+          renderMissionList();
+        };
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', e=>{
+          if(e.key === 'Enter') input.blur();
+          if(e.key === 'Escape'){ input.removeEventListener('blur', commit); renderMissionList(); }
+        });
+      });
+
+      const delBtn = row.querySelector('[data-action="delete"]');
+      delBtn.addEventListener('click', function(){
+        if(delBtn.dataset.confirming === 'true'){
+          state.missions = state.missions.filter(m=>m.id !== id);
+          saveMissions(state.cat, state.missions);
+          renderMissionList();
+        } else {
+          delBtn.dataset.confirming = 'true';
+          delBtn.textContent = '✓?';
+          delBtn.classList.add('confirming');
+          setTimeout(()=>{
+            if(delBtn.dataset.confirming === 'true'){
+              delBtn.dataset.confirming = 'false';
+              delBtn.textContent = '×';
+              delBtn.classList.remove('confirming');
+            }
+          }, 2000);
+        }
+      });
+    });
+  }
+
+  showMain();
+})();
+</script>
